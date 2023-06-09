@@ -7,12 +7,22 @@ RUN apt-get update && \
     pip3 install --upgrade pip &&
     pip3 install networkx pydot pydotplus
 
-RUN git clone https://github.com/aflgo/aflgo /aflgo
+RUN git clone \
+    --depth 1 \
+    https://github.com/aflgo/aflgo /afl
 
-RUN cd /aflgo &&
+RUN cd /afl &&
     make clean all &&
     cd llvm_mode &&
     make clean all &&
     cd ../distance_calculator/ &&
     make -G Ninja ./ &&
     make --build ./
+
+# Use afl_driver.cpp from LLVM as our fuzzing library.
+RUN apt-get update && \
+    apt-get install wget -y && \
+    wget https://raw.githubusercontent.com/llvm/llvm-project/5feb80e748924606531ba28c97fe65145c65372e/compiler-rt/lib/fuzzer/afl/afl_driver.cpp -O /afl/afl_driver.cpp && \
+    clang -Wno-pointer-sign -c /afl/llvm_mode/afl-llvm-rt.o.c -I/afl && \
+    clang++ -stdlib=libc++ -std=c++11 -O2 -c /afl/afl_driver.cpp && \
+    ar r /libAFL.a *.o
